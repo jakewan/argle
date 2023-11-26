@@ -1,33 +1,20 @@
 package argle
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
 )
 
 type optionProcessor interface {
-	processArgs(o commandOption) error
+	processArgs(o runtimeOption) error
 }
 
-type stringOption struct{}
-
-func (stringOption) processArgs(o commandOption) error {
-	log.Printf("stringOption.ProcessOption")
-	return nil
+type boolOption struct {
+	name string
 }
 
-type fileOption struct{}
-
-func (fileOption) processArgs(o commandOption) error {
-	log.Printf("fileOption.ProcessOption %+v", o)
-	return nil
-}
-
-type boolOption struct{}
-
-func (boolOption) processArgs(o commandOption) error {
+func (boolOption) processArgs(o runtimeOption) error {
 	log.Printf("boolOption.ProcessOption %+v", o)
 	return nil
 }
@@ -35,20 +22,22 @@ func (boolOption) processArgs(o commandOption) error {
 type subcommandOption func(string, *argProc)
 
 func WithBoolOption(name string) subcommandOption {
-	return func(subcmd string, processor *argProc) {
-		processor.options[subcmd] = boolOption{}
+	return func(subcmd string, ap *argProc) {
+		log.Print("Inside WithBoolOption func")
+		config := ap.getSubcommandConfig(subcmd)
+		config.options = append(config.options, boolOption{name})
+		ap.subcommandConfigs[subcmd] = config
+		log.Printf("Subcommand config: %+v", config)
 	}
 }
 
-func WithFileOption(name string) subcommandOption {
-	return func(subcmd string, processor *argProc) {
-		processor.options[subcmd] = fileOption{}
-	}
-}
-
-func WithStringOption(name string) subcommandOption {
-	return func(subcmd string, processor *argProc) {
-		processor.options[subcmd] = stringOption{}
+func WithHandler(handler func()) subcommandOption {
+	return func(subcmd string, ap *argProc) {
+		log.Print("Inside WithHandler func")
+		config := ap.getSubcommandConfig(subcmd)
+		config.handler = handler
+		ap.subcommandConfigs[subcmd] = config
+		log.Printf("Subcommand config: %+v", config)
 	}
 }
 
@@ -58,8 +47,13 @@ type ArgumentProcessor interface {
 	ExecuteWithArgs(a []string) error
 }
 
+type subcommandConfig struct {
+	handler func()
+	options []optionProcessor
+}
+
 type argProc struct {
-	options map[string]optionProcessor
+	subcommandConfigs map[string]subcommandConfig
 }
 
 func (processor *argProc) AddSubcommand(subcmd string, opts ...subcommandOption) {
@@ -68,30 +62,42 @@ func (processor *argProc) AddSubcommand(subcmd string, opts ...subcommandOption)
 	}
 }
 
-type commandOption struct {
+func (ap *argProc) getSubcommandConfig(subcmd string) subcommandConfig {
+	config, ok := ap.subcommandConfigs[subcmd]
+	if !ok {
+		config = subcommandConfig{
+			options: []optionProcessor{},
+		}
+		ap.subcommandConfigs[subcmd] = config
+	}
+	return config
+}
+
+type runtimeOption struct {
 	name  string
 	value string
 }
 
-type commandSpec struct {
+type runtimeArgs struct {
 	subcommandList []string
-	options        []commandOption
+	options        []runtimeOption
 }
 
-func (s commandSpec) subcommandListAsString() string {
+func (s runtimeArgs) subcommandListAsString() string {
 	return strings.Join(s.subcommandList, " ")
 }
 
-func (proc argProc) ExecuteWithArgs(a []string) error {
-	log.Printf("args: %+v", a)
-	userArgs := parseUserArgs(a[1:])
-	log.Printf("User args: %+v", userArgs)
-	log.Printf("Processor options %+v", proc.options)
-	subcommandOptions := proc.options[userArgs.subcommandListAsString()]
-	if subcommandOptions == nil {
-		return fmt.Errorf("invalid subcommand key %s", userArgs.subcommandListAsString())
-	}
-	log.Printf("Subcommand options: %+v", subcommandOptions)
+func (proc argProc) ExecuteWithArgs(args []string) error {
+	log.Printf("Arg processor: %+v", proc)
+	log.Printf("args: %+v", args)
+	runtimeArgs := parseRuntimeArgs(args[1:])
+	log.Printf("Runtime args: %+v", runtimeArgs)
+	// log.Printf("Processor options %+v", proc.options)
+	// subcommandOptions := proc.options[runtimeArgs.subcommandListAsString()]
+	// if subcommandOptions == nil {
+	// 	return fmt.Errorf("invalid subcommand key %s", runtimeArgs.subcommandListAsString())
+	// }
+	// log.Printf("Subcommand options: %+v", subcommandOptions)
 	return nil
 }
 
@@ -101,12 +107,12 @@ func (proc argProc) Execute() error {
 
 func NewArgumentProcessor() ArgumentProcessor {
 	return &argProc{
-		options: map[string]optionProcessor{},
+		subcommandConfigs: map[string]subcommandConfig{},
 	}
 }
 
-func parseUserArgs(a []string) commandSpec {
-	result := commandSpec{
+func parseRuntimeArgs(a []string) runtimeArgs {
+	result := runtimeArgs{
 		subcommandList: []string{},
 	}
 	nextArgIdx := 0
@@ -135,7 +141,7 @@ func parseUserArgs(a []string) commandSpec {
 		if len(optionParts) == 2 {
 			result.options = append(
 				result.options,
-				commandOption{name: optionParts[0], value: optionParts[1]},
+				runtimeOption{name: optionParts[0], value: optionParts[1]},
 			)
 		} else {
 			nextArgIdx := currentArgIdx + 1
@@ -143,7 +149,7 @@ func parseUserArgs(a []string) commandSpec {
 				nextArg := a[nextArgIdx]
 				result.options = append(
 					result.options,
-					commandOption{name: optionParts[0], value: nextArg},
+					runtimeOption{name: optionParts[0], value: nextArg},
 				)
 			} else {
 				log.Printf("No next arg")

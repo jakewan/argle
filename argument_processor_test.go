@@ -26,16 +26,22 @@ func Test(t *testing.T) {
 		{
 			description: "bool flag with default",
 			processorSetupFunc: func(ap argle.ArgumentProcessor) {
-				ap.AddSubcommand("subcommand", argle.WithBoolOption("somebool"))
+				ap.AddSubcommand("some-subcommand", argle.WithBoolOption("some-bool"), argle.WithHandler(func() {
+					log.Print("Inside subcommand handler")
+				}))
 			},
-			executeArgs: []string{"someprogram", "subcommand", "-somebool"},
+			executeArgs: []string{"some-program", "some-subcommand", "-some-bool"},
 		},
 	}
 	for _, cfg := range testTable {
 		t.Run(cfg.description, func(t *testing.T) {
 			p := argle.NewArgumentProcessor()
 			cfg.processorSetupFunc(p)
+
+			// Code under test
 			err := p.ExecuteWithArgs(cfg.executeArgs)
+
+			// Verify
 			if err != nil {
 				if cfg.expectedErrorString != "" {
 					assert.EqualError(t, err, cfg.expectedErrorString)
