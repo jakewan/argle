@@ -31,21 +31,13 @@ func WithBoolOption(name string) subcommandOption {
 	}
 }
 
-type HandlerFunc func(interface{})
-
-func WithHandler(handler HandlerFunc) subcommandOption {
+func WithGenericHandler[T interface{}](handler SubcommandHandler[T]) subcommandOption {
 	return func(subcmd string, ap *argProc) {
-		log.Print("Inside WithHandler func")
+		log.Printf("Inside WithGenericHandler %+v", handler)
 		config := ap.getSubcommandConfig(subcmd)
-		config.handler = handler
-		ap.subcommandConfigs[subcmd] = config
-	}
-}
-
-func WithArgType[T interface{}](args *T) subcommandOption {
-	return func(subcmd string, ap *argProc) {
-		config := ap.getSubcommandConfig(subcmd)
-		config.typeSafeArgs = args
+		config.handler = func() error {
+			return handler.Func(handler.Args)
+		}
 		ap.subcommandConfigs[subcmd] = config
 	}
 }
@@ -57,9 +49,8 @@ type ArgumentProcessor interface {
 }
 
 type subcommandConfig struct {
-	handler      HandlerFunc
-	options      []optionProcessor
-	typeSafeArgs interface{}
+	handler func() error
+	options []optionProcessor
 }
 
 // translateRuntimeArgs takes the runtime arg given by the user and updates
@@ -116,9 +107,7 @@ func (ap argProc) ExecuteWithArgs(args []string) error {
 		return fmt.Errorf("invalid subcommand key %s", runtimeArgs.subcommandListAsString())
 	}
 	subcommandConfig.translateRuntimeArgs(runtimeArgs)
-	log.Printf("Type-safe runtime args: %+v", subcommandConfig.typeSafeArgs)
-	subcommandConfig.handler(subcommandConfig.typeSafeArgs)
-	return nil
+	return subcommandConfig.handler()
 }
 
 func (proc argProc) Execute() error {
@@ -177,4 +166,9 @@ func parseRuntimeArgs(a []string) runtimeArgs {
 		nextArgIdx += 1
 	}
 	return result
+}
+
+type SubcommandHandler[T interface{}] struct {
+	Args T
+	Func func(T) error
 }

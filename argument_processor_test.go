@@ -12,7 +12,7 @@ func init() {
 	log.SetFlags(0)
 }
 
-type processorSetupFunc = func(argle.ArgumentProcessor)
+type processorSetupFunc = func(*testing.T, argle.ArgumentProcessor)
 
 type testConfig struct {
 	description         string
@@ -24,23 +24,23 @@ type testConfig struct {
 func Test(t *testing.T) {
 	testTable := []testConfig{
 		{
-			description: "bool flag with default true",
-			processorSetupFunc: func(ap argle.ArgumentProcessor) {
+			description: "bool flags have default true",
+			processorSetupFunc: func(t *testing.T, ap argle.ArgumentProcessor) {
 				type myTypeSafeArgs struct {
-					SomeBool bool
+					someBool bool
 				}
-				var args myTypeSafeArgs
+				handler := argle.SubcommandHandler[myTypeSafeArgs]{
+					Func: func(mtsa myTypeSafeArgs) error {
+						assert.True(t, mtsa.someBool)
+						return nil
+					},
+				}
 				ap.AddSubcommand(
 					"some-subcommand",
-					argle.WithArgType(&args),
 					argle.WithBoolOption("some-bool"),
-					argle.WithHandler(func(calledWith interface{}) {
-						c := calledWith.(*myTypeSafeArgs)
-						log.Printf("Subcommand handler called with %+v", c)
-						c.SomeBool = true
-						log.Printf("Outer args %+v", args)
-					}),
+					argle.WithGenericHandler(handler),
 				)
+				log.Printf("New handler: %+v", handler)
 			},
 			executeArgs: []string{"some-program", "some-subcommand", "-some-bool"},
 		},
@@ -48,7 +48,7 @@ func Test(t *testing.T) {
 	for _, cfg := range testTable {
 		t.Run(cfg.description, func(t *testing.T) {
 			p := argle.NewArgumentProcessor()
-			cfg.processorSetupFunc(p)
+			cfg.processorSetupFunc(t, p)
 
 			// Code under test
 			err := p.ExecuteWithArgs(cfg.executeArgs)
