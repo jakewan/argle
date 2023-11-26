@@ -29,8 +29,8 @@ func Test(t *testing.T) {
 				ap.AddSubcommand(
 					"some-subcommand",
 					argle.WithBoolOption("some-bool"),
-					argle.WithHandler(func(args int) {
-						log.Printf("Inside subcommand handler: %d", args)
+					argle.WithHandler(func(args interface{}) {
+						log.Printf("Inside subcommand handler: %+v", args)
 					}),
 				)
 			},

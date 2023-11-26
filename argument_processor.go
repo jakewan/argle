@@ -31,7 +31,9 @@ func WithBoolOption(name string) subcommandOption {
 	}
 }
 
-func WithHandler(handler func(int)) subcommandOption {
+type HandlerFunc func(interface{})
+
+func WithHandler(handler HandlerFunc) subcommandOption {
 	return func(subcmd string, ap *argProc) {
 		log.Print("Inside WithHandler func")
 		config := ap.getSubcommandConfig(subcmd)
@@ -47,7 +49,7 @@ type ArgumentProcessor interface {
 }
 
 type subcommandConfig struct {
-	handler func(int)
+	handler HandlerFunc
 	options []optionProcessor
 }
 
