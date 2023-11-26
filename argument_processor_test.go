@@ -26,9 +26,13 @@ func Test(t *testing.T) {
 		{
 			description: "bool flag with default true",
 			processorSetupFunc: func(ap argle.ArgumentProcessor) {
-				ap.AddSubcommand("some-subcommand", argle.WithBoolOption("some-bool"), argle.WithHandler(func() {
-					log.Print("Inside subcommand handler")
-				}))
+				ap.AddSubcommand(
+					"some-subcommand",
+					argle.WithBoolOption("some-bool"),
+					argle.WithHandler(func(args int) {
+						log.Printf("Inside subcommand handler: %d", args)
+					}),
+				)
 			},
 			executeArgs: []string{"some-program", "some-subcommand", "-some-bool"},
 		},

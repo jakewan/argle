@@ -31,7 +31,7 @@ func WithBoolOption(name string) subcommandOption {
 	}
 }
 
-func WithHandler(handler func()) subcommandOption {
+func WithHandler(handler func(int)) subcommandOption {
 	return func(subcmd string, ap *argProc) {
 		log.Print("Inside WithHandler func")
 		config := ap.getSubcommandConfig(subcmd)
@@ -47,8 +47,12 @@ type ArgumentProcessor interface {
 }
 
 type subcommandConfig struct {
-	handler func()
+	handler func(int)
 	options []optionProcessor
+}
+
+func (sc subcommandConfig) translateRuntimeArgs(ra runtimeArgs) int {
+	return 123
 }
 
 type argProc struct {
@@ -96,6 +100,9 @@ func (ap argProc) ExecuteWithArgs(args []string) error {
 	if !ok {
 		return fmt.Errorf("invalid subcommand key %s", runtimeArgs.subcommandListAsString())
 	}
+	typeSafeArgs := subcommandConfig.translateRuntimeArgs(runtimeArgs)
+	log.Printf("Type-safe runtime args: %+v", typeSafeArgs)
+	subcommandConfig.handler(typeSafeArgs)
 	return nil
 }
 
