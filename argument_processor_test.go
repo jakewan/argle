@@ -26,11 +26,19 @@ func Test(t *testing.T) {
 		{
 			description: "bool flag with default true",
 			processorSetupFunc: func(ap argle.ArgumentProcessor) {
+				type myTypeSafeArgs struct {
+					SomeBool bool
+				}
+				var args myTypeSafeArgs
 				ap.AddSubcommand(
 					"some-subcommand",
+					argle.WithArgType(&args),
 					argle.WithBoolOption("some-bool"),
-					argle.WithHandler(func(args interface{}) {
-						log.Printf("Inside subcommand handler: %+v", args)
+					argle.WithHandler(func(calledWith interface{}) {
+						c := calledWith.(*myTypeSafeArgs)
+						log.Printf("Subcommand handler called with %+v", c)
+						c.SomeBool = true
+						log.Printf("Outer args %+v", args)
 					}),
 				)
 			},

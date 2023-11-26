@@ -42,6 +42,14 @@ func WithHandler(handler HandlerFunc) subcommandOption {
 	}
 }
 
+func WithArgType[T interface{}](args *T) subcommandOption {
+	return func(subcmd string, ap *argProc) {
+		config := ap.getSubcommandConfig(subcmd)
+		config.typeSafeArgs = args
+		ap.subcommandConfigs[subcmd] = config
+	}
+}
+
 type ArgumentProcessor interface {
 	AddSubcommand(subcmd string, opts ...subcommandOption)
 	Execute() error
@@ -49,12 +57,17 @@ type ArgumentProcessor interface {
 }
 
 type subcommandConfig struct {
-	handler HandlerFunc
-	options []optionProcessor
+	handler      HandlerFunc
+	options      []optionProcessor
+	typeSafeArgs interface{}
 }
 
-func (sc subcommandConfig) translateRuntimeArgs(ra runtimeArgs) int {
-	return 123
+// translateRuntimeArgs takes the runtime arg given by the user and updates
+// the subcommand's internal typesafe argument, which will be passed to the
+// subcommand handler in a later step.
+func (sc subcommandConfig) translateRuntimeArgs(ra runtimeArgs) {
+	log.Printf("translateRuntimeArgs subcommand config: %+v", sc)
+	log.Printf("translateRuntimeArgs runtime args: %+v", ra)
 }
 
 type argProc struct {
@@ -102,9 +115,9 @@ func (ap argProc) ExecuteWithArgs(args []string) error {
 	if !ok {
 		return fmt.Errorf("invalid subcommand key %s", runtimeArgs.subcommandListAsString())
 	}
-	typeSafeArgs := subcommandConfig.translateRuntimeArgs(runtimeArgs)
-	log.Printf("Type-safe runtime args: %+v", typeSafeArgs)
-	subcommandConfig.handler(typeSafeArgs)
+	subcommandConfig.translateRuntimeArgs(runtimeArgs)
+	log.Printf("Type-safe runtime args: %+v", subcommandConfig.typeSafeArgs)
+	subcommandConfig.handler(subcommandConfig.typeSafeArgs)
 	return nil
 }
 
