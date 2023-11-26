@@ -24,7 +24,7 @@ type testConfig struct {
 func Test(t *testing.T) {
 	testTable := []testConfig{
 		{
-			description: "bool flag with default",
+			description: "bool flag with default true",
 			processorSetupFunc: func(ap argle.ArgumentProcessor) {
 				ap.AddSubcommand("some-subcommand", argle.WithBoolOption("some-bool"), argle.WithHandler(func() {
 					log.Print("Inside subcommand handler")

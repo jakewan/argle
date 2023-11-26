@@ -1,6 +1,7 @@
 package argle
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -27,7 +28,6 @@ func WithBoolOption(name string) subcommandOption {
 		config := ap.getSubcommandConfig(subcmd)
 		config.options = append(config.options, boolOption{name})
 		ap.subcommandConfigs[subcmd] = config
-		log.Printf("Subcommand config: %+v", config)
 	}
 }
 
@@ -37,7 +37,6 @@ func WithHandler(handler func()) subcommandOption {
 		config := ap.getSubcommandConfig(subcmd)
 		config.handler = handler
 		ap.subcommandConfigs[subcmd] = config
-		log.Printf("Subcommand config: %+v", config)
 	}
 }
 
@@ -87,17 +86,16 @@ func (s runtimeArgs) subcommandListAsString() string {
 	return strings.Join(s.subcommandList, " ")
 }
 
-func (proc argProc) ExecuteWithArgs(args []string) error {
-	log.Printf("Arg processor: %+v", proc)
-	log.Printf("args: %+v", args)
+func (ap argProc) ExecuteWithArgs(args []string) error {
+	log.Printf("ExecuteWithArgs arg processor: %+v", ap)
+	log.Printf("Args: %+v", args)
 	runtimeArgs := parseRuntimeArgs(args[1:])
 	log.Printf("Runtime args: %+v", runtimeArgs)
-	// log.Printf("Processor options %+v", proc.options)
-	// subcommandOptions := proc.options[runtimeArgs.subcommandListAsString()]
-	// if subcommandOptions == nil {
-	// 	return fmt.Errorf("invalid subcommand key %s", runtimeArgs.subcommandListAsString())
-	// }
-	// log.Printf("Subcommand options: %+v", subcommandOptions)
+	subcommandConfig, ok := ap.subcommandConfigs[runtimeArgs.subcommandListAsString()]
+	log.Printf("Subcommand config: %+v", subcommandConfig)
+	if !ok {
+		return fmt.Errorf("invalid subcommand key %s", runtimeArgs.subcommandListAsString())
+	}
 	return nil
 }
 
@@ -145,15 +143,14 @@ func parseRuntimeArgs(a []string) runtimeArgs {
 			)
 		} else {
 			nextArgIdx := currentArgIdx + 1
+			var value string
 			if len(a) > nextArgIdx {
-				nextArg := a[nextArgIdx]
-				result.options = append(
-					result.options,
-					runtimeOption{name: optionParts[0], value: nextArg},
-				)
-			} else {
-				log.Printf("No next arg")
+				value = a[nextArgIdx]
 			}
+			result.options = append(
+				result.options,
+				runtimeOption{name: optionParts[0], value: value},
+			)
 		}
 		nextArgIdx += 1
 	}
