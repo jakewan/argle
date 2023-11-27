@@ -27,11 +27,13 @@ func Test(t *testing.T) {
 			description: "bool flags have default true",
 			processorSetupFunc: func(t *testing.T, ap argle.ArgumentProcessor) {
 				type myTypeSafeArgs struct {
-					someBool bool
+					someBool      bool
+					someOtherBool bool
 				}
 				handler := argle.SubcommandHandler[myTypeSafeArgs]{
 					Func: func(mtsa myTypeSafeArgs) error {
 						assert.True(t, mtsa.someBool)
+						assert.False(t, mtsa.someOtherBool)
 						return nil
 					},
 				}

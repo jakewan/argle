@@ -30,7 +30,7 @@ type boolOption struct {
 
 // processRuntimeOption implements optionProcessor.
 func (b *boolOption) processRuntimeOption(ro runtimeOption) error {
-	log.Printf("processRuntimeOption %+v %+v", b, ro)
+	log.Printf("processRuntimeOption before %+v %+v", b, ro)
 	if ro.value == "" {
 		b.value = b.defaultValue
 	} else if val, err := strconv.ParseBool(ro.value); err != nil {
@@ -38,6 +38,7 @@ func (b *boolOption) processRuntimeOption(ro runtimeOption) error {
 	} else {
 		b.value = val
 	}
+	log.Printf("processRuntimeOption after %+v", b)
 	return nil
 }
 
@@ -75,7 +76,10 @@ func WithGenericHandler[T interface{}](handler SubcommandHandler[T]) subcommandO
 		log.Printf("Inside WithGenericHandler %+v", handler)
 		config := ap.getSubcommandConfig(subcmd)
 		config.handler = func() error {
-			return handler.Func(handler.Args)
+			log.Printf("Calling handler func with %+v", handler.Args)
+			return handler.Func(
+				config.transferRuntimeArgs(&handler.Args).(T),
+			)
 		}
 		ap.subcommandConfigs[subcmd] = config
 	}
@@ -90,6 +94,15 @@ type ArgumentProcessor interface {
 type subcommandConfig struct {
 	handler func() error
 	options []optionProcessor
+}
+
+func (sc *subcommandConfig) transferRuntimeArgs(handlerArgs interface{}) interface{} {
+	log.Printf("Handler args: %+v", handlerArgs)
+	for _, opt := range sc.options {
+		log.Printf("Option: %+v %s", opt, opt.normalizedName())
+
+	}
+	return nil
 }
 
 // translateRuntimeArgs takes the runtime arg given by the user and updates
@@ -126,7 +139,9 @@ func (sc subcommandConfig) translateRuntimeArgs(ra runtimeArgs) error {
 			return fmt.Errorf("no configuration found for runtime option %s", runtimeOpt.name)
 		}
 		configuredOpt := sc.options[idx]
+		log.Printf("configuredOpt before: %+v", configuredOpt)
 		configuredOpt.processRuntimeOption(runtimeOpt)
+		log.Printf("configuredOpt after: %+v", configuredOpt)
 	}
 	return nil
 }
