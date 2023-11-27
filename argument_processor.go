@@ -4,20 +4,46 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 )
 
 type optionProcessor interface {
-	processArgs(o runtimeOption) error
+	normalizedName() string
+	processRuntimeOption(runtimeOption) error
+}
+
+func normalizedOptionName(name string) string {
+	log.Printf("Normalizing %s", name)
+	result := strings.ToLower(name)
+	result = strings.ReplaceAll(result, "-", "")
+	log.Printf("Returning %s", result)
+	return result
 }
 
 type boolOption struct {
-	name string
+	name         string
+	value        bool
+	defaultValue bool
 }
 
-func (boolOption) processArgs(o runtimeOption) error {
-	log.Printf("boolOption.ProcessOption %+v", o)
+// processRuntimeOption implements optionProcessor.
+func (b *boolOption) processRuntimeOption(ro runtimeOption) error {
+	log.Printf("processRuntimeOption %+v %+v", b, ro)
+	if ro.value == "" {
+		b.value = b.defaultValue
+	} else if val, err := strconv.ParseBool(ro.value); err != nil {
+		return err
+	} else {
+		b.value = val
+	}
 	return nil
+}
+
+// normalizedName implements optionProcessor.
+func (o boolOption) normalizedName() string {
+	return normalizedOptionName(o.name)
 }
 
 type subcommandOption func(string, *argProc)
@@ -26,7 +52,20 @@ func WithBoolOption(name string) subcommandOption {
 	return func(subcmd string, ap *argProc) {
 		log.Print("Inside WithBoolOption func")
 		config := ap.getSubcommandConfig(subcmd)
-		config.options = append(config.options, boolOption{name})
+		config.options = append(config.options,
+			&boolOption{name: name, defaultValue: true},
+		)
+		ap.subcommandConfigs[subcmd] = config
+	}
+}
+
+func WithBoolOptionWithDefault(name string, d bool) subcommandOption {
+	return func(subcmd string, ap *argProc) {
+		log.Print("Inside WithBoolOptionWithDefault func")
+		config := ap.getSubcommandConfig(subcmd)
+		config.options = append(config.options,
+			&boolOption{name: name, defaultValue: d},
+		)
 		ap.subcommandConfigs[subcmd] = config
 	}
 }
@@ -56,9 +95,40 @@ type subcommandConfig struct {
 // translateRuntimeArgs takes the runtime arg given by the user and updates
 // the subcommand's internal typesafe argument, which will be passed to the
 // subcommand handler in a later step.
-func (sc subcommandConfig) translateRuntimeArgs(ra runtimeArgs) {
+func (sc subcommandConfig) translateRuntimeArgs(ra runtimeArgs) error {
 	log.Printf("translateRuntimeArgs subcommand config: %+v", sc)
 	log.Printf("translateRuntimeArgs runtime args: %+v", ra)
+	slices.SortFunc(sc.options, func(a, b optionProcessor) int {
+		if a.normalizedName() < b.normalizedName() {
+			return -1
+		}
+		if a.normalizedName() > b.normalizedName() {
+			return 1
+		}
+		return 0
+	})
+	for _, runtimeOpt := range ra.options {
+		log.Printf("Runtime arg: %+v", runtimeOpt)
+		idx, found := slices.BinarySearchFunc(
+			sc.options,
+			runtimeOpt,
+			func(op optionProcessor, ro runtimeOption) int {
+				if op.normalizedName() < ro.normalizedName() {
+					return -1
+				}
+				if op.normalizedName() > ro.normalizedName() {
+					return 1
+				}
+				return 0
+			},
+		)
+		if !found {
+			return fmt.Errorf("no configuration found for runtime option %s", runtimeOpt.name)
+		}
+		configuredOpt := sc.options[idx]
+		configuredOpt.processRuntimeOption(runtimeOpt)
+	}
+	return nil
 }
 
 type argProc struct {
@@ -87,6 +157,10 @@ type runtimeOption struct {
 	value string
 }
 
+func (o runtimeOption) normalizedName() string {
+	return normalizedOptionName(o.name)
+}
+
 type runtimeArgs struct {
 	subcommandList []string
 	options        []runtimeOption
@@ -106,7 +180,9 @@ func (ap argProc) ExecuteWithArgs(args []string) error {
 	if !ok {
 		return fmt.Errorf("invalid subcommand key %s", runtimeArgs.subcommandListAsString())
 	}
-	subcommandConfig.translateRuntimeArgs(runtimeArgs)
+	if err := subcommandConfig.translateRuntimeArgs(runtimeArgs); err != nil {
+		return err
+	}
 	return subcommandConfig.handler()
 }
 

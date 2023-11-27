@@ -38,6 +38,7 @@ func Test(t *testing.T) {
 				ap.AddSubcommand(
 					"some-subcommand",
 					argle.WithBoolOption("some-bool"),
+					argle.WithBoolOptionWithDefault("some-other-bool", false),
 					argle.WithGenericHandler(handler),
 				)
 				log.Printf("New handler: %+v", handler)
