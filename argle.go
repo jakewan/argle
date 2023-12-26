@@ -13,17 +13,9 @@ type tempArgumentHolder struct{}
 
 type SubcommandHandler = func(a ArgumentHolder) error
 
-type Subcommand interface {
-	SetHandler(SubcommandHandler) Subcommand
-}
-
 type tempSubcommand struct {
+	name    string
 	handler SubcommandHandler
-}
-
-func (sc *tempSubcommand) SetHandler(handler SubcommandHandler) Subcommand {
-	sc.handler = handler
-	return sc
 }
 
 type Executor interface {
@@ -35,14 +27,27 @@ type tempExecutor struct {
 	handler SubcommandHandler
 }
 
-// Exec implements Executor.
 func (ex *tempExecutor) Exec() error {
 	fmt.Printf("Exec args: %s\n", ex.args)
 	return ex.handler(tempArgumentHolder{})
 }
 
+type subcommandOption func(*tempSubcommand)
+
+func WithHandler(h SubcommandHandler) subcommandOption {
+	return func(e *tempSubcommand) {
+		e.handler = h
+	}
+}
+
+func WithIntArg(name string) subcommandOption {
+	return func(e *tempSubcommand) {
+		e.name = name
+	}
+}
+
 type Config interface {
-	AddSubcommand(sc []string) Subcommand
+	AddSubcommand(sc []string, opts ...subcommandOption)
 	Parse() (Executor, error)
 	ParseWithArgs(a []string) (Executor, error)
 }
@@ -51,15 +56,17 @@ type tempConfig struct {
 	subcommands map[string]*tempSubcommand
 }
 
-func (c *tempConfig) AddSubcommand(sc []string) Subcommand {
+func (c *tempConfig) AddSubcommand(sc []string, opts ...subcommandOption) {
 	key := strings.Join(sc, " ")
 	_, ok := c.subcommands[key]
 	if ok {
 		panic(fmt.Sprintf("Subcommand for %s exists", sc))
 	}
-	result := &tempSubcommand{}
-	c.subcommands[key] = result
-	return result
+	newSubcommand := &tempSubcommand{}
+	for _, o := range opts {
+		o(newSubcommand)
+	}
+	c.subcommands[key] = newSubcommand
 }
 
 func (c *tempConfig) Parse() (Executor, error) {
