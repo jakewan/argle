@@ -27,22 +27,25 @@ type DrawLinesArgs struct {
 func main() {
 	config := argle.NewConfig()
 	config.AddSubcommand(
-		[]string{"draw", "shapes"},
-		argle.WithHandler(
-			func(a argle.ArgumentHolder) error {
-				return drawShapes(DrawShapesArgs{})
-			},
+		"draw",
+		argle.WithSubcommand(
+			"shapes",
+			argle.WithIntArg("count"),
+			argle.WithHandler(
+				func(a argle.ArgumentHolder) error {
+					return drawShapes(DrawShapesArgs{})
+				},
+			),
 		),
-		argle.WithIntArg("count"),
-	)
-	config.AddSubcommand(
-		[]string{"draw", "lines"},
-		argle.WithHandler(
-			func(a argle.ArgumentHolder) error {
-				return drawLines(DrawLinesArgs{})
-			},
+		argle.WithSubcommand(
+			"lines",
+			argle.WithIntArg("count"),
+			argle.WithHandler(
+				func(a argle.ArgumentHolder) error {
+					return drawLines(DrawLinesArgs{})
+				},
+			),
 		),
-		argle.WithIntArg("count"),
 	)
 	fmt.Printf("Argle config: %v\n", config)
 	if exec, err := config.Parse(); err != nil {

@@ -35,19 +35,25 @@ func (ex *tempExecutor) Exec() error {
 type subcommandOption func(*tempSubcommand)
 
 func WithHandler(h SubcommandHandler) subcommandOption {
-	return func(e *tempSubcommand) {
-		e.handler = h
+	return func(s *tempSubcommand) {
+		s.handler = h
 	}
 }
 
 func WithIntArg(name string) subcommandOption {
-	return func(e *tempSubcommand) {
-		e.name = name
+	return func(s *tempSubcommand) {
+		s.name = name
+	}
+}
+
+func WithSubcommand(name string, opts ...subcommandOption) subcommandOption {
+	return func(s *tempSubcommand) {
+
 	}
 }
 
 type Config interface {
-	AddSubcommand(sc []string, opts ...subcommandOption)
+	AddSubcommand(name string, opts ...subcommandOption)
 	Parse() (Executor, error)
 	ParseWithArgs(a []string) (Executor, error)
 }
@@ -56,17 +62,16 @@ type tempConfig struct {
 	subcommands map[string]*tempSubcommand
 }
 
-func (c *tempConfig) AddSubcommand(sc []string, opts ...subcommandOption) {
-	key := strings.Join(sc, " ")
-	_, ok := c.subcommands[key]
+func (c *tempConfig) AddSubcommand(name string, opts ...subcommandOption) {
+	_, ok := c.subcommands[name]
 	if ok {
-		panic(fmt.Sprintf("Subcommand for %s exists", sc))
+		panic(fmt.Sprintf("Subcommand %s exists", name))
 	}
 	newSubcommand := &tempSubcommand{}
 	for _, o := range opts {
 		o(newSubcommand)
 	}
-	c.subcommands[key] = newSubcommand
+	c.subcommands[name] = newSubcommand
 }
 
 func (c *tempConfig) Parse() (Executor, error) {
