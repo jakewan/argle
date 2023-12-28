@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/jakewan/argle"
 )
@@ -24,6 +24,10 @@ type DrawLinesArgs struct {
 	count      int
 }
 
+func init() {
+	log.SetFlags(0)
+}
+
 func main() {
 	config := argle.NewConfig()
 	config.AddSubcommand(
@@ -31,6 +35,7 @@ func main() {
 		argle.WithSubcommand(
 			"shapes",
 			argle.WithIntArg("count"),
+			argle.WithArg("count", 0),
 			argle.WithHandler(
 				func(a argle.ArgumentHolder) error {
 					return drawShapes(DrawShapesArgs{})
@@ -47,20 +52,20 @@ func main() {
 			),
 		),
 	)
-	fmt.Printf("Argle config: %v\n", config)
+	log.Printf("Argle config: %v", config)
 	if exec, err := config.Parse(); err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	} else {
 		exec.Exec()
 	}
 }
 
 func drawShapes(a DrawShapesArgs) error {
-	fmt.Printf("drawShapes given %v\n", a)
+	log.Printf("drawShapes given %v", a)
 	return nil
 }
 
 func drawLines(a DrawLinesArgs) error {
-	fmt.Printf("drawLines given %v\n", a)
+	log.Printf("drawLines given %v", a)
 	return nil
 }

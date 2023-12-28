@@ -1,10 +1,9 @@
 package argle
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"slices"
-	"strings"
 )
 
 type ArgumentHolder interface{}
@@ -16,6 +15,11 @@ type SubcommandHandler = func(a ArgumentHolder) error
 type tempSubcommand struct {
 	name    string
 	handler SubcommandHandler
+}
+
+func (sc *tempSubcommand) findSubcommand(tokens []string) (Executor, error) {
+	fmt.Printf("findSubcommand tokens: %s\n", tokens)
+	return nil, errors.New("not implemented")
 }
 
 type Executor interface {
@@ -37,6 +41,13 @@ type subcommandOption func(*tempSubcommand)
 func WithHandler(h SubcommandHandler) subcommandOption {
 	return func(s *tempSubcommand) {
 		s.handler = h
+	}
+}
+
+func WithArg[T any](name string, d T) subcommandOption {
+	var value T
+	return func(ts *tempSubcommand) {
+		fmt.Printf("%s is %v\n", name, value)
 	}
 }
 
@@ -82,22 +93,30 @@ func (c *tempConfig) ParseWithArgs(a []string) (Executor, error) {
 	fmt.Printf("ParseWithArgs given %s\n", a)
 	prog := a[0]
 	fmt.Printf("Program: %s\n", prog)
-	incomingArgs := a[1:]
-	fmt.Printf("Incoming args: %s\n", incomingArgs)
-	for k, v := range c.subcommands {
-		scParts := strings.Split(k, " ")
-		if len(incomingArgs) >= len(scParts) {
-			fmt.Printf("Comparing %v to %v\n", scParts, incomingArgs[:len(scParts)])
-			if slices.Equal(scParts, incomingArgs[:len(scParts)]) {
-				fmt.Printf("Found subcommand for %s: %v\n", k, v)
-				return &tempExecutor{
-					args:    incomingArgs[len(scParts):],
-					handler: v.handler,
-				}, nil
-			}
-		}
+	tokens := a[1:]
+	fmt.Printf("Tokens: %s\n", tokens)
+	token := tokens[0]
+	fmt.Printf("Current token: %s\n", token)
+	sc, ok := c.subcommands[token]
+	if !ok {
+		return nil, fmt.Errorf("subcommand not found: %s", token)
 	}
-	return nil, fmt.Errorf("subcommand not found: %s", strings.Join(incomingArgs, " "))
+	fmt.Printf("Current subcommand: %v\n", sc)
+	return sc.findSubcommand(tokens[1:])
+	// for k, v := range c.subcommands {
+	// 	// scParts := strings.Split(k, " ")
+	// 	// if len(incomingArgs) >= len(scParts) {
+	// 	// 	fmt.Printf("Comparing %v to %v\n", scParts, incomingArgs[:len(scParts)])
+	// 	// 	if slices.Equal(scParts, incomingArgs[:len(scParts)]) {
+	// 	// 		fmt.Printf("Found subcommand for %s: %v\n", k, v)
+	// 	// 		return &tempExecutor{
+	// 	// 			args:    incomingArgs[len(scParts):],
+	// 	// 			handler: v.handler,
+	// 	// 		}, nil
+	// 	// 	}
+	// 	// }
+	// }
+	// return nil, fmt.Errorf("subcommand not found: %s", strings.Join(tokens, " "))
 }
 
 func NewConfig() Config {
