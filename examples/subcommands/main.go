@@ -9,9 +9,9 @@ import (
 type Shape int
 
 const (
-	circle Shape = iota
-	rectangle
-	triangle
+	shapeCircle Shape = iota
+	shapeRectangle
+	shapeTriangle
 )
 
 type DrawShapesArgs struct {
@@ -35,7 +35,12 @@ func main() {
 		argle.WithSubcommand(
 			"shapes",
 			argle.WithIntArg("count"),
-			argle.WithArg("count", 0),
+			argle.WithStringOptionsArg(
+				"shape",
+				argle.WithStringOption("circle", shapeCircle),
+				argle.WithStringOption("rectangle", shapeRectangle),
+				argle.WithStringOption("triangle", shapeTriangle),
+			),
 			argle.WithHandler(
 				func(a argle.ArgumentHolder) error {
 					return drawShapes(DrawShapesArgs{})
@@ -45,9 +50,18 @@ func main() {
 		argle.WithSubcommand(
 			"lines",
 			argle.WithIntArg("count"),
+			argle.WithFloat32Arg("line-length"),
 			argle.WithHandler(
 				func(a argle.ArgumentHolder) error {
-					return drawLines(DrawLinesArgs{})
+					c, err := a.GetIntArg("count")
+					if err != nil {
+						return err
+					}
+					var l float32 = 0.0
+					return drawLines(DrawLinesArgs{
+						count:      c,
+						lineLength: l,
+					})
 				},
 			),
 		),

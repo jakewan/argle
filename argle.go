@@ -6,9 +6,17 @@ import (
 	"os"
 )
 
-type ArgumentHolder interface{}
+type ArgumentHolder interface {
+	GetIntArg(name string) (int, error)
+}
 
 type tempArgumentHolder struct{}
+
+// GetIntArg implements ArgumentHolder.
+func (tempArgumentHolder) GetIntArg(name string) (int, error) {
+	fmt.Printf("GetIntArg %s\n", name)
+	panic("unimplemented")
+}
 
 type SubcommandHandler = func(a ArgumentHolder) error
 
@@ -44,14 +52,28 @@ func WithHandler(h SubcommandHandler) subcommandOption {
 	}
 }
 
-func WithArg[T any](name string, d T) subcommandOption {
-	var value T
-	return func(ts *tempSubcommand) {
-		fmt.Printf("%s is %v\n", name, value)
+func WithIntArg(name string) subcommandOption {
+	return func(s *tempSubcommand) {
+		s.name = name
 	}
 }
 
-func WithIntArg(name string) subcommandOption {
+func WithFloat32Arg(name string) subcommandOption {
+	return func(s *tempSubcommand) {
+		s.name = name
+	}
+}
+
+type stringOptionOption[T any] func() T
+
+func WithStringOption[T any](name string, value T) stringOptionOption[T] {
+	return func() T {
+		fmt.Printf("String option handler %s\n", name)
+		return value
+	}
+}
+
+func WithStringOptionsArg[T any](name string, opts ...stringOptionOption[T]) subcommandOption {
 	return func(s *tempSubcommand) {
 		s.name = name
 	}

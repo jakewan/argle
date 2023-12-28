@@ -1,5 +1,7 @@
 # argle
 
+An experimental CLI argument parser.
+
 ## Examples
 
 ```shell
