@@ -29,33 +29,27 @@ func init() {
 }
 
 func main() {
-	config := argle.NewConfig()
-	config.AddSubcommand(
-		"draw",
-		argle.WithSubcommand(
-			"shapes",
-			argle.WithIntArg("count"),
-			argle.WithStringOptionsArg(
-				"shape",
-				argle.WithStringOption("circle", shapeCircle),
-				argle.WithStringOption("rectangle", shapeRectangle),
-				argle.WithStringOption("triangle", shapeTriangle),
+	argle.NewConfig().
+		AddSubcommand(
+			"draw",
+			argle.WithSubcommand(
+				"shapes",
+				argle.WithIntArg("count"),
+				argle.WithStringOptionsArg(
+					"shape",
+					argle.WithStringOption("circle", shapeCircle),
+					argle.WithStringOption("rectangle", shapeRectangle),
+					argle.WithStringOption("triangle", shapeTriangle),
+				),
+				argle.WithHandler(drawShapes),
 			),
-			argle.WithHandler(drawShapes),
-		),
-		argle.WithSubcommand(
-			"lines",
-			argle.WithIntArg("count"),
-			argle.WithFloat32Arg("line-length"),
-			argle.WithHandler(drawLines),
-		),
-	)
-	log.Printf("Argle config: %v", config)
-	if exec, err := config.Parse(); err != nil {
-		log.Fatal(err)
-	} else {
-		exec.Exec()
-	}
+			argle.WithSubcommand(
+				"lines",
+				argle.WithIntArg("count"),
+				argle.WithFloat32Arg("line-length"),
+				argle.WithHandler(drawLines),
+			),
+		).Run()
 }
 
 func drawShapes(a DrawShapesArgs) error {

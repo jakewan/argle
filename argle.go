@@ -93,16 +93,28 @@ func WithSubcommand(name string, opts ...subcommandOption) subcommandOption {
 }
 
 type Config interface {
-	AddSubcommand(name string, opts ...subcommandOption)
+	AddSubcommand(name string, opts ...subcommandOption) Config
 	Parse() (Executor, error)
 	ParseWithArgs(a []string) (Executor, error)
+	Run()
 }
 
 type tempConfig struct {
 	subcommands map[string]*tempSubcommand
 }
 
-func (c *tempConfig) AddSubcommand(name string, opts ...subcommandOption) {
+// Run implements Config.
+func (c *tempConfig) Run() {
+	fmt.Printf("Argle config: %v\n", c)
+	if exec, err := c.Parse(); err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
+	} else {
+		exec.Exec()
+	}
+}
+
+func (c *tempConfig) AddSubcommand(name string, opts ...subcommandOption) Config {
 	_, ok := c.subcommands[name]
 	if ok {
 		panic(fmt.Sprintf("Subcommand %s exists", name))
@@ -112,6 +124,7 @@ func (c *tempConfig) AddSubcommand(name string, opts ...subcommandOption) {
 		o(newSubcommand)
 	}
 	c.subcommands[name] = newSubcommand
+	return c
 }
 
 func (c *tempConfig) Parse() (Executor, error) {
