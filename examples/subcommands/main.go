@@ -41,29 +41,13 @@ func main() {
 				argle.WithStringOption("rectangle", shapeRectangle),
 				argle.WithStringOption("triangle", shapeTriangle),
 			),
-			argle.WithHandler(
-				func(a argle.ArgumentHolder) error {
-					return drawShapes(DrawShapesArgs{})
-				},
-			),
+			argle.WithHandler(drawShapes),
 		),
 		argle.WithSubcommand(
 			"lines",
 			argle.WithIntArg("count"),
 			argle.WithFloat32Arg("line-length"),
-			argle.WithHandler(
-				func(a argle.ArgumentHolder) error {
-					c, err := a.GetIntArg("count")
-					if err != nil {
-						return err
-					}
-					var l float32 = 0.0
-					return drawLines(DrawLinesArgs{
-						count:      c,
-						lineLength: l,
-					})
-				},
-			),
+			argle.WithHandler(drawLines),
 		),
 	)
 	log.Printf("Argle config: %v", config)
@@ -75,11 +59,11 @@ func main() {
 }
 
 func drawShapes(a DrawShapesArgs) error {
-	log.Printf("drawShapes given %v", a)
+	log.Printf("drawShapes (shape=%d,count=%d)", a.shape, a.count)
 	return nil
 }
 
 func drawLines(a DrawLinesArgs) error {
-	log.Printf("drawLines given %v", a)
+	log.Printf("drawLines (line length=%f,count=%d)", a.lineLength, a.count)
 	return nil
 }

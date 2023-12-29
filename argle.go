@@ -6,19 +6,18 @@ import (
 	"os"
 )
 
-type ArgumentHolder interface {
-	GetIntArg(name string) (int, error)
+type RuntimeArguments interface {
+	Load(target any) error
 }
 
-type tempArgumentHolder struct{}
+type runtimeArgs struct{}
 
-// GetIntArg implements ArgumentHolder.
-func (tempArgumentHolder) GetIntArg(name string) (int, error) {
-	fmt.Printf("GetIntArg %s\n", name)
+// Load implements RuntimeArguments.
+func (runtimeArgs) Load(target any) error {
 	panic("unimplemented")
 }
 
-type SubcommandHandler = func(a ArgumentHolder) error
+type SubcommandHandler = func(a RuntimeArguments) error
 
 type tempSubcommand struct {
 	name    string
@@ -41,12 +40,20 @@ type tempExecutor struct {
 
 func (ex *tempExecutor) Exec() error {
 	fmt.Printf("Exec args: %s\n", ex.args)
-	return ex.handler(tempArgumentHolder{})
+	return ex.handler(runtimeArgs{})
 }
 
 type subcommandOption func(*tempSubcommand)
 
-func WithHandler(h SubcommandHandler) subcommandOption {
+func WithHandler[T any](f func(a T) error) subcommandOption {
+	h := func(a RuntimeArguments) error {
+		var args T
+		err := a.Load(&args)
+		if err != nil {
+			return err
+		}
+		return f(args)
+	}
 	return func(s *tempSubcommand) {
 		s.handler = h
 	}
