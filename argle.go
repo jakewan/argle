@@ -19,12 +19,24 @@ func (runtimeArgs) Load(target any) error {
 
 type SubcommandHandler = func(a RuntimeArguments) error
 
-type tempSubcommand struct {
-	name    string
-	handler SubcommandHandler
+type subcommand struct {
+	name        string
+	handler     SubcommandHandler
+	subcommands map[string]*subcommand
 }
 
-func (sc *tempSubcommand) findSubcommand(tokens []string) (Executor, error) {
+func newSubcommand(name string, opts ...subcommandOption) *subcommand {
+	newSub := &subcommand{
+		name:        name,
+		subcommands: map[string]*subcommand{},
+	}
+	for _, o := range opts {
+		o(newSub)
+	}
+	return newSub
+}
+
+func (sc *subcommand) findSubcommand(tokens []string) (Executor, error) {
 	fmt.Printf("findSubcommand tokens: %s\n", tokens)
 	return nil, errors.New("not implemented")
 }
@@ -43,7 +55,7 @@ func (ex *tempExecutor) Exec() error {
 	return ex.handler(runtimeArgs{})
 }
 
-type subcommandOption func(*tempSubcommand)
+type subcommandOption func(*subcommand)
 
 func WithHandler[T any](f func(a T) error) subcommandOption {
 	h := func(a RuntimeArguments) error {
@@ -54,19 +66,19 @@ func WithHandler[T any](f func(a T) error) subcommandOption {
 		}
 		return f(args)
 	}
-	return func(s *tempSubcommand) {
+	return func(s *subcommand) {
 		s.handler = h
 	}
 }
 
 func WithIntArg(name string) subcommandOption {
-	return func(s *tempSubcommand) {
+	return func(s *subcommand) {
 		s.name = name
 	}
 }
 
 func WithFloat32Arg(name string) subcommandOption {
-	return func(s *tempSubcommand) {
+	return func(s *subcommand) {
 		s.name = name
 	}
 }
@@ -81,14 +93,20 @@ func WithStringOption[T any](name string, value T) stringOptionOption[T] {
 }
 
 func WithStringOptionsArg[T any](name string, opts ...stringOptionOption[T]) subcommandOption {
-	return func(s *tempSubcommand) {
+	return func(s *subcommand) {
 		s.name = name
 	}
 }
 
 func WithSubcommand(name string, opts ...subcommandOption) subcommandOption {
-	return func(s *tempSubcommand) {
-
+	fmt.Printf("WithSubcommand (name=%s)\n", name)
+	return func(s *subcommand) {
+		_, ok := s.subcommands[name]
+		if ok {
+			panic(fmt.Sprintf("Subcommand %s exists", name))
+		}
+		s.subcommands[name] = newSubcommand(name, opts...)
+		fmt.Printf("WithSubcommand inner (name=%s,subcommand=%+v)\n", name, s)
 	}
 }
 
@@ -100,14 +118,14 @@ type Config interface {
 }
 
 type tempConfig struct {
-	subcommands map[string]*tempSubcommand
+	subcommands map[string]*subcommand
 }
 
 // Run implements Config.
 func (c *tempConfig) Run() {
 	fmt.Printf("Argle config: %v\n", c)
 	if exec, err := c.Parse(); err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	} else {
 		exec.Exec()
@@ -119,11 +137,9 @@ func (c *tempConfig) AddSubcommand(name string, opts ...subcommandOption) Config
 	if ok {
 		panic(fmt.Sprintf("Subcommand %s exists", name))
 	}
-	newSubcommand := &tempSubcommand{}
-	for _, o := range opts {
-		o(newSubcommand)
-	}
-	c.subcommands[name] = newSubcommand
+	s := newSubcommand(name, opts...)
+	fmt.Printf("%+v\n", *s)
+	c.subcommands[name] = s
 	return c
 }
 
@@ -163,6 +179,6 @@ func (c *tempConfig) ParseWithArgs(a []string) (Executor, error) {
 
 func NewConfig() Config {
 	return &tempConfig{
-		subcommands: map[string]*tempSubcommand{},
+		subcommands: map[string]*subcommand{},
 	}
 }
