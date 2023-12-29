@@ -34,19 +34,19 @@ func main() {
 			"draw",
 			argle.WithSubcommand(
 				"shapes",
-				argle.WithIntArg("count"),
-				argle.WithStringOptionsArg(
+				argle.WithArg[int]("count"),
+				argle.WithArg[Shape](
 					"shape",
-					argle.WithStringOption("circle", shapeCircle),
-					argle.WithStringOption("rectangle", shapeRectangle),
-					argle.WithStringOption("triangle", shapeTriangle),
+					argle.WithArgOption(shapeCircle),
+					argle.WithArgOption(shapeRectangle),
+					argle.WithArgOption(shapeTriangle),
 				),
 				argle.WithHandler(drawShapes),
 			),
 			argle.WithSubcommand(
 				"lines",
-				argle.WithIntArg("count"),
-				argle.WithFloat32Arg("line-length"),
+				argle.WithArg[int]("count"),
+				argle.WithArg[float32]("line-length"),
 				argle.WithHandler(drawLines),
 			),
 		).Run()

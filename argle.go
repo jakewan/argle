@@ -20,14 +20,14 @@ func (runtimeArgs) Load(target any) error {
 type SubcommandHandler = func(a RuntimeArguments) error
 
 type subcommand struct {
-	name        string
+	arguments   map[string]*argument
 	handler     SubcommandHandler
 	subcommands map[string]*subcommand
 }
 
-func newSubcommand(name string, opts ...subcommandOption) *subcommand {
+func newSubcommand(opts ...subcommandOption) *subcommand {
 	newSub := &subcommand{
-		name:        name,
+		arguments:   map[string]*argument{},
 		subcommands: map[string]*subcommand{},
 	}
 	for _, o := range opts {
@@ -71,30 +71,35 @@ func WithHandler[T any](f func(a T) error) subcommandOption {
 	}
 }
 
-func WithIntArg(name string) subcommandOption {
-	return func(s *subcommand) {
-		s.name = name
+type argument struct{}
+
+func newArgument(opts ...argumentOption) *argument {
+	a := &argument{}
+	for _, o := range opts {
+		o(a)
+	}
+	return a
+}
+
+type argumentOption func(*argument)
+
+func WithArgOption[T any](o T) argumentOption {
+	fmt.Printf("WithArgOption (option=%+v)\n", o)
+	return func(a *argument) {
+		fmt.Printf("WithArgOption inner after (option=%+v,argument=%+v)\n", o, a)
 	}
 }
 
-func WithFloat32Arg(name string) subcommandOption {
+func WithArg[T any](name string, opts ...argumentOption) subcommandOption {
+	fmt.Printf("WithArg (name=%s)\n", name)
 	return func(s *subcommand) {
-		s.name = name
-	}
-}
-
-type stringOptionOption[T any] func() T
-
-func WithStringOption[T any](name string, value T) stringOptionOption[T] {
-	return func() T {
-		fmt.Printf("String option handler %s\n", name)
-		return value
-	}
-}
-
-func WithStringOptionsArg[T any](name string, opts ...stringOptionOption[T]) subcommandOption {
-	return func(s *subcommand) {
-		s.name = name
+		fmt.Printf("WithArg inner (name=%s,subcommand=%+v)\n", name, s)
+		_, ok := s.arguments[name]
+		if ok {
+			panic(fmt.Sprintf("Argument %s exists", name))
+		}
+		s.arguments[name] = newArgument()
+		fmt.Printf("WithArg inner after (name=%s,subcommand=%+v)\n", name, s)
 	}
 }
 
@@ -105,7 +110,7 @@ func WithSubcommand(name string, opts ...subcommandOption) subcommandOption {
 		if ok {
 			panic(fmt.Sprintf("Subcommand %s exists", name))
 		}
-		s.subcommands[name] = newSubcommand(name, opts...)
+		s.subcommands[name] = newSubcommand(opts...)
 		fmt.Printf("WithSubcommand inner (name=%s,subcommand=%+v)\n", name, s)
 	}
 }
@@ -121,7 +126,6 @@ type tempConfig struct {
 	subcommands map[string]*subcommand
 }
 
-// Run implements Config.
 func (c *tempConfig) Run() {
 	fmt.Printf("Argle config: %v\n", c)
 	if exec, err := c.Parse(); err != nil {
@@ -137,7 +141,7 @@ func (c *tempConfig) AddSubcommand(name string, opts ...subcommandOption) Config
 	if ok {
 		panic(fmt.Sprintf("Subcommand %s exists", name))
 	}
-	s := newSubcommand(name, opts...)
+	s := newSubcommand(opts...)
 	fmt.Printf("%+v\n", *s)
 	c.subcommands[name] = s
 	return c
@@ -161,20 +165,6 @@ func (c *tempConfig) ParseWithArgs(a []string) (Executor, error) {
 	}
 	fmt.Printf("Current subcommand: %v\n", sc)
 	return sc.findSubcommand(tokens[1:])
-	// for k, v := range c.subcommands {
-	// 	// scParts := strings.Split(k, " ")
-	// 	// if len(incomingArgs) >= len(scParts) {
-	// 	// 	fmt.Printf("Comparing %v to %v\n", scParts, incomingArgs[:len(scParts)])
-	// 	// 	if slices.Equal(scParts, incomingArgs[:len(scParts)]) {
-	// 	// 		fmt.Printf("Found subcommand for %s: %v\n", k, v)
-	// 	// 		return &tempExecutor{
-	// 	// 			args:    incomingArgs[len(scParts):],
-	// 	// 			handler: v.handler,
-	// 	// 		}, nil
-	// 	// 	}
-	// 	// }
-	// }
-	// return nil, fmt.Errorf("subcommand not found: %s", strings.Join(tokens, " "))
 }
 
 func NewConfig() Config {
