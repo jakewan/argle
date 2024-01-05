@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/jakewan/argle/internal"
 )
 
 type RuntimeArguments interface {
@@ -122,8 +124,15 @@ type Config interface {
 	Run()
 }
 
+type invalidSubcommandBehavior int
+
+const (
+	invalidSubcommandBehaviorDisplayHelp invalidSubcommandBehavior = iota
+)
+
 type tempConfig struct {
-	subcommands map[string]*subcommand
+	invalidSubcommandBehavior invalidSubcommandBehavior
+	subcommands               map[string]*subcommand
 }
 
 func (c *tempConfig) Run() {
@@ -157,6 +166,12 @@ func (c *tempConfig) ParseWithArgs(a []string) (Executor, error) {
 	fmt.Printf("Program: %s\n", prog)
 	tokens := a[1:]
 	fmt.Printf("Tokens: %s\n", tokens)
+	if len(tokens) == 0 {
+		if c.invalidSubcommandBehavior == invalidSubcommandBehaviorDisplayHelp {
+			return &internal.DisplayHelp{}, nil
+		}
+		return nil, internal.NoSubcommandGiven{}
+	}
 	token := tokens[0]
 	fmt.Printf("Current token: %s\n", token)
 	sc, ok := c.subcommands[token]
@@ -169,6 +184,7 @@ func (c *tempConfig) ParseWithArgs(a []string) (Executor, error) {
 
 func NewConfig() Config {
 	return &tempConfig{
-		subcommands: map[string]*subcommand{},
+		invalidSubcommandBehavior: invalidSubcommandBehaviorDisplayHelp,
+		subcommands:               map[string]*subcommand{},
 	}
 }
