@@ -5,17 +5,17 @@ import (
 )
 
 type displayHelp struct {
-	config *tempConfig
+	c *config
 }
 
-func newDisplayHelp(config *tempConfig) displayHelp {
+func newDisplayHelp(c *config) displayHelp {
 	return displayHelp{
-		config,
+		c,
 	}
 }
 
 // Exec implements argle.Executor.
 func (d displayHelp) Exec() error {
-	fmt.Printf("Displaying help for config %v\n", d.config)
+	fmt.Printf("Displaying help for config %v\n", d.c)
 	return nil
 }
