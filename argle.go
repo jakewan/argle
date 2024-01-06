@@ -4,13 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-
-	"github.com/jakewan/argle/internal"
 )
-
-type RuntimeArguments interface {
-	Load(target any) error
-}
 
 type runtimeArgs struct{}
 
@@ -19,7 +13,7 @@ func (runtimeArgs) Load(target any) error {
 	panic("unimplemented")
 }
 
-type SubcommandHandler = func(a RuntimeArguments) error
+type SubcommandHandler = func(a runtimeArgs) error
 
 type subcommand struct {
 	arguments   map[string]*argument
@@ -47,20 +41,20 @@ type Executor interface {
 	Exec() error
 }
 
-type tempExecutor struct {
-	args    []string
-	handler SubcommandHandler
-}
+// type tempExecutor struct {
+// 	args    []string
+// 	handler SubcommandHandler
+// }
 
-func (ex *tempExecutor) Exec() error {
-	fmt.Printf("Exec args: %s\n", ex.args)
-	return ex.handler(runtimeArgs{})
-}
+// func (ex *tempExecutor) Exec() error {
+// 	fmt.Printf("Exec args: %s\n", ex.args)
+// 	return ex.handler(runtimeArgs{})
+// }
 
 type subcommandOption func(*subcommand)
 
 func WithHandler[T any](f func(a T) error) subcommandOption {
-	h := func(a RuntimeArguments) error {
+	h := func(a runtimeArgs) error {
 		var args T
 		err := a.Load(&args)
 		if err != nil {
@@ -168,9 +162,9 @@ func (c *tempConfig) ParseWithArgs(a []string) (Executor, error) {
 	fmt.Printf("Tokens: %s\n", tokens)
 	if len(tokens) == 0 {
 		if c.invalidSubcommandBehavior == invalidSubcommandBehaviorDisplayHelp {
-			return &internal.DisplayHelp{}, nil
+			return newDisplayHelp(c), nil
 		}
-		return nil, internal.NoSubcommandGiven{}
+		return nil, noSubcommandGiven{}
 	}
 	token := tokens[0]
 	fmt.Printf("Current token: %s\n", token)
